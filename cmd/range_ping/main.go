@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/galqiwi/range_ping/internal/connection"
+	"github.com/galqiwi/range_ping/internal/recv_loop"
 	"golang.org/x/net/icmp"
 	"log"
 	"net"
@@ -20,27 +21,21 @@ func Main() error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		_ = conn.Close()
+	}()
 
-	timeIt(func() {
-		err = conn.SendEchoRequest([]byte{1, 1, 1, 1})
+	l := recv_loop.NewRecvLoop(conn)
+	l.AddCallback(net.IP{1, 1, 1, 1}, func(message *icmp.Message) {
+		fmt.Println(message)
 	})
 
+	err = conn.SendEchoRequest(net.IP{1, 1, 1, 1})
 	if err != nil {
 		return err
 	}
 
-	var msg *icmp.Message
-	var addr net.Addr
-
-	timeIt(func() {
-		msg, addr, err = conn.RecvResponse()
-	})
-
-	if err != nil {
-		return err
-	}
-
-	fmt.Println(msg, addr)
+	time.Sleep(time.Second * 10)
 
 	return nil
 }
