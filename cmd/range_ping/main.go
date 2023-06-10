@@ -2,11 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/galqiwi/range_ping/internal/connection"
-	"github.com/galqiwi/range_ping/internal/recv_loop"
-	"golang.org/x/net/icmp"
+	"github.com/galqiwi/range_ping/internal/icmp_client"
 	"log"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -17,25 +16,22 @@ func timeIt(f func()) {
 }
 
 func Main() error {
-	conn, err := connection.NewUDPConnection()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = conn.Close()
-	}()
-
-	l := recv_loop.NewRecvLoop(conn)
-	l.AddCallback(net.IP{1, 1, 1, 1}, func(message *icmp.Message) {
-		fmt.Println(message)
-	})
-
-	err = conn.SendEchoRequest(net.IP{1, 1, 1, 1})
+	client, err := icmp_client.NewICMPClient(time.Second * 3)
 	if err != nil {
 		return err
 	}
 
-	time.Sleep(time.Second * 10)
+	var wg sync.WaitGroup
+	for i := 0; i < 256; i += 1 {
+		i := i
+		wg.Add(1)
+		go func() {
+			resp, err := client.SendRequest(net.IP{1, 1, 1, byte(i)})
+			fmt.Println(i, resp, err)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 
 	return nil
 }
