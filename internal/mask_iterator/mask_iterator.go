@@ -27,6 +27,7 @@ func IPGenerator(mask string) (chan net.IP, error) {
 			copy(outputIP, ip)
 			output <- outputIP
 		}
+		close(output)
 	}()
 
 	return output, nil
